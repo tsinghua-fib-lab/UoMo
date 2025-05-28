@@ -1,0 +1,2 @@
+stage:0, epoch:0, best rmse: 2.934065818786621
+{'TrafficNC2': {'random_masking': {0.5: tensor(2.8810, device='cuda:0')}, 'generation_masking': {0.25: tensor(2.6192, device='cuda:0')}, 'short_long_temporal_masking': {0.25: tensor(2.9187, device='cuda:0'), 0.75: tensor(3.3174, device='cuda:0')}}}
