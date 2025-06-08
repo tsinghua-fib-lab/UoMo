@@ -112,7 +112,7 @@ class FinalLayer(nn.Module):
         return x
 
 
-class DiT(nn.Module):
+class UoMo_model(nn.Module):
     """
     Diffusion model with a Transformer backbone.
     """
@@ -164,10 +164,7 @@ class DiT(nn.Module):
 
 
     def unpatchify(self, x):
-        """
-        x: (N, T, patch_size**2 * C)
-        imgs: (N, H, W, C)
-        """
+
         T, H, W = self.args.info
         t = T//self.args.t_patch_size
         h = H // self.args.patch_size
@@ -223,12 +220,7 @@ class DiT(nn.Module):
         return pos_embed
 
     def forward(self, x, user, poi, mask_origin, t, y):
-        """
-        Forward pass of DiT.
-        x: (N, C, H, W) tensor of spatial inputs (images or latent representations of images)
-        t: (N,) tensor of diffusion timesteps
-        y: (N,) tensor of class labels
-        """
+
         
         N, imput_dim, T, H, W = x.shape
         _,_,K,_,_ = poi.shape
@@ -256,25 +248,26 @@ class DiT(nn.Module):
         _, L, C = x_mask_emb.shape
         assert x_mask_emb.shape == pos_embed_sort.shape
 
-        t = self.t_embedder(t)                   # (N, D)
+        t = self.t_embedder(t)
 
         x_mask_emb = x_mask_emb + pos_embed_sort.to(device=t.device) +  TimeEmb + poi_emb 
 
         c = t.unsqueeze(1) + users_embed
         #####-----------------------------------------------------------------------####
         for block in self.blocks:
-            x_mask_emb = block(x_mask_emb, c)                      # (N, T, D)
-        x = self.final_layer(x_mask_emb, c)               # (N, T, patch_size ** 2 * out_channels)
-        x = self.unpatchify(x)                   # (N, out_channels, H, W)
+            x_mask_emb = block(x_mask_emb, c)                   
+        x = self.final_layer(x_mask_emb, c)
+        x = self.unpatchify(x)
         return x
 
 
 
 
 
-def DiT_S_8(args=None,**kwargs):
-    return DiT(args = args, patch_size=2, num_heads=8,  **kwargs)
+def UoMo_S(args=None,**kwargs):
+    return UoMo_model(args = args, patch_size=2, num_heads=8,  **kwargs)
 
-DiT_models = { 'DiT-S/8':  DiT_S_8}
+UoMo_models = { 'UoMo-S':  UoMo_S}
+
 
 

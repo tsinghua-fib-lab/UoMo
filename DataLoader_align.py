@@ -103,7 +103,7 @@ def data_load_single(args, dataset):
     my_scaler0 = MinMaxScaler(feature_range=(-1, 1))
     train_data0 = X_train_u
     my_scaler0.fit(train_data0.reshape(-1,1))
-    # 对所有子集进行标准化
+
 
     data_scaled = my_scaler.transform(X_train.reshape(-1,1)).reshape(X_train.shape)
     data_u = my_scaler0.transform(X_train_u.reshape(-1, 1)).reshape(X_train_u.shape).astype(np.float32)
@@ -120,7 +120,7 @@ def data_load_single(args, dataset):
     data_val = [[data_scaled_val[i], X_val_ts[i], data_u_val[i], data_p_val[i]] for i in range(X_val.shape[0])]
 
 
-    # 创建子集
+
     train_dataset = MyDataset(data)
     val_dataset = MyDataset(data_test)
     test_dataset = MyDataset(data_val)
@@ -133,15 +133,7 @@ def data_load_single(args, dataset):
 
     return  train_loader, test_loader, val_loader, my_scaler
 
-def data_load_mix(args, data_list):
-    data_all = []
 
-    for data in data_list:
-        data_all += data
-
-    data_all = th.utils.data.DataLoader(data_all, num_workers=4, batch_size=args.batch_size, shuffle=True)
-
-    return data_all
 
 
 def data_load(args):

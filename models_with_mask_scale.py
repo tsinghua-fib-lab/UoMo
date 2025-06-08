@@ -1,13 +1,7 @@
 # Copyright (c) Meta Platforms, Inc. and affiliates.
 # All rights reserved.
 
-# This source code is licensed under the license found in the
-# LICENSE file in the root directory of this source tree.
-# --------------------------------------------------------
-# References:
-# GLIDE: https://github.com/openai/glide-text2im
-# MAE: https://github.com/facebookresearch/mae/blob/main/models_mae.py
-# --------------------------------------------------------
+
 
 import torch
 import torch.nn as nn
@@ -121,7 +115,7 @@ class FinalLayer(nn.Module):
         return x
 
 
-class DiT(nn.Module):
+class UoMo_model(nn.Module):
     """
     Diffusion model with a Transformer backbone.
     """
@@ -236,7 +230,6 @@ class DiT(nn.Module):
 
 
         x = x.reshape(x.shape[0], t, h, w, self.args.t_patch_size, self.args.patch_size, self.args.patch_size,  sigma_split)
-        # x = x.reshape(shape=(x.shape[0], h, w, p, p, c))
         x = torch.einsum('nthwabcs->nsatbhcw', x)
         imgs = x.reshape(x.shape[0],sigma_split, T,H, W)
         return imgs
@@ -283,10 +276,6 @@ class DiT(nn.Module):
 
     def forward(self, x, mask_origin, t, y):
         """
-        Forward pass of DiT.
-        x: (N, C, H, W) tensor of spatial inputs (images or latent representations of images)
-        t: (N,) tensor of diffusion timesteps
-        y: (N,) tensor of class labels
         """
 
 
@@ -317,22 +306,22 @@ class DiT(nn.Module):
 
         x_mask_emb_comb = x_mask_emb
 
-        t = self.t_embedder(t)                   # (N, D)
+        t = self.t_embedder(t)
         x_mask_emb_comb = x_mask_emb_comb + pos_embed_sort.to(device = t.device) +  TimeEmb
-        c =  t.unsqueeze(1)  #+ mask_embed
+        c =  t.unsqueeze(1)
         for block in self.blocks:
-            x_mask_emb_comb = block(x_mask_emb_comb, c)                      # (N, T, D)
-        x = self.final_layer(x_mask_emb_comb, c)               # (N, T, patch_size ** 2 * out_channels)
-        x = self.unpatchify(x)                   # (N, out_channels, H, W)
+            x_mask_emb_comb = block(x_mask_emb_comb, c)
+        x = self.final_layer(x_mask_emb_comb, c)
+        x = self.unpatchify(x)
         return x, mask_origin
 
 
 
 
 
-def DiT_S_8(args=None,**kwargs):
-    return DiT(args = args, patch_size=2, num_heads=8,  **kwargs)
+def UoMo_S(args=None,**kwargs):
+    return UoMo_model(args = args, patch_size=2, num_heads=8,  **kwargs)
 
-DiT_models = { 'DiT-S/8':  DiT_S_8}
+UoMo_models = { 'UoMo-S':  UoMo_S}
 
 
