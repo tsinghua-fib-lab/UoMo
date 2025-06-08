@@ -861,7 +861,7 @@ class GaussianDiffusion:
 
             # 求负样本损失：对每对 (i, j) 样本计算损失
             negative_loss = sum_flat(negative_residual) / adjusted_num_eval.float()
-            lambda_val = 1e-6#1e-6 # 可以根据需要调整 lambda 的值
+            lambda_val = 1e-7#1e-6 # 可以根据需要调整 lambda 的值
             terms["mse"] = positive_loss - lambda_val * negative_loss
             # 计算每个样本的输出
 
