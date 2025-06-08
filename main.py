@@ -62,7 +62,7 @@ def create_argparser():
         mode='training',
         file_load_path = '',
         min_lr = 1e-5,
-        dataset = 'TrafficNC',#*TrafficSD*TrafficNJ
+        dataset = 'TrafficNC*TrafficSD*TrafficNJ',#
         stage = 0,
         no_qkv_bias = 0,
         batch_size_taxibj = 256,
