@@ -3,9 +3,9 @@ import argparse
 import random
 
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "2"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
-from models_with_mask_scale import DiT_models
+from models_with_mask_scale import UoMo_models
 from train import TrainLoop
 import setproctitle
 import torch
@@ -43,31 +43,21 @@ def create_argparser():
         data_dir="",
         lr=1e-4,
         task = 'short64',
+        dataset='TrafficNC*TrafficSD*TrafficNJ',  # ,#*TrafficSD*TrafficNJ
+        mask_strategy=['random_masking', 'generation_masking', 'short_long_temporal_masking'],  # 'random'
         length0 = 64,
+        batch_size=256,
         early_stop = 20,
         weight_decay=1e-4,
-        batch_size=256,
         log_interval=20,
         total_epoches = 100,
-        device_id='0',
-        machine = 'machine_name',
         mask_ratio = 0.5,
         lr_anneal_steps = 500,
         patch_size = 1,
-        random=True,
         t_patch_size = 1,
-        size = 'small',
         clip_grad = 1,
-        mask_strategy = ['random_masking','generation_masking','short_long_temporal_masking'], # 'random'
-        mode='training',
-        file_load_path = '',
         min_lr = 1e-5,
-        dataset = 'TrafficNC*TrafficSD*TrafficNJ',#
         stage = 0,
-        no_qkv_bias = 0,
-        batch_size_taxibj = 256,
-        pos_emb = 'SinCos',
-        process_name = 'process_name',
     )
     parser = argparse.ArgumentParser()
     add_dict_to_argparser(parser, defaults)
@@ -105,7 +95,7 @@ def main():
 
     device = dev(args.device_id)
 
-    model = DiT_models['DiT-S/8'](
+    model = UoMo_models['UoMo-S'](
         args=args,
         in_channels = args.t_patch_size * args.patch_size * args.patch_size,
         depth=8,
