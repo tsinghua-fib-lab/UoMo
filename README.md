@@ -1,8 +1,29 @@
 <img src="./images/label.png" width="210px">
 
-# UoMo: A Universal Model of Mobile Traffic Forecasting for Wireless Network Optimization
+
+
+
+# *KDD'25: UoMo: A Universal Model of Mobile Traffic Forecasting for Wireless Network Optimization*
+
+
+<p align="center">
+  <a href="#">Haoye Chai<sup>1</sup></a>,
+  <a href="#">Shiyuan Zhang<sup>1</sup></a>,
+  <a href="#">Xiaoqian Qi<sup>1</sup></a>,
+  <a href="#">Baohua Qiu<sup>2</sup></a>,
+  <a href="#">Yong Li<sup>1*</sup></a>
+</p>
+
+<p align="center">
+  <sup>1</sup> Tsinghua University &nbsp; &nbsp;
+  <sup>2</sup> China Mobile
+</p>
+
+
+
 This is the official implementation of our foundation model for mobile traffic data, accepted by the KDD 2025 ADS track.
 
+---
 
 # Overall framework
 
@@ -98,7 +119,7 @@ pip install -r requirements.txt
 - The pre-trained models and generated data are saved in the following directory:
 
     ```
-    experiments/Len64_{Dataset_name}_DiT
+    experiments/Len64_{Dataset_name}_Pretrain
     ```
 
 ## 4. Fine-tuned Models and Generated Data Directory
