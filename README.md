@@ -12,7 +12,6 @@ Our model adopts a three-stage paradigm consisting of <code>tokenization</code>,
 
 # Pre-training & Fine-tuning
 
-<figure class="half">
-<img src="./images/pretreain.png">
-<img src="./images/fine-tuning.png">
-</figure>
+<img src="./images/workflow.png">
+
+# Dataset
