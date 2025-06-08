@@ -91,7 +91,7 @@ def main():
 
     data, test_data, val_data, args.scaler = data_load_main(args)
 
-    args.folder = 'Len{}_{}_DiT/'.format(args.length0, args.dataset.replace('*', '_'))
+    args.folder = 'Len{}_{}_Pretrain/'.format(args.length0, args.dataset.replace('*', '_'))
     args.model_path = f'./experiments/{args.folder}'
     logdir = "./logs/{}".format(args.folder)
 
