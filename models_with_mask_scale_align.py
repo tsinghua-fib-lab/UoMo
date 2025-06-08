@@ -234,9 +234,9 @@ class DiT(nn.Module):
         _,_,K,_,_ = poi.shape
         poi_trans = poi.permute(0,2,1,3,4).expand(-1,-1,T, -1, -1)[:,:15]
 
-        if self.args.name_id == 'TrafficSD':
+        if self.args.name_id == 'TrafficNJ':
             TimeEmb = self.Embedding_qartH(x, y, is_time=True)
-        elif self.args.name_id == 'TrafficNC2' or self.args.dataset == 'TrafficNC1':
+        elif self.args.name_id == 'TrafficNC':
             TimeEmb = self.Embedding_halfH(x, y, is_time=True)
         else:
             TimeEmb = self.Embedding_H(x, y, is_time=True)
@@ -249,7 +249,8 @@ class DiT(nn.Module):
 
         x_noise_mask = x[:,1].unsqueeze(1)
         x_obs = x[:,0].unsqueeze(1)
-        x_mask_emb, obs_embed, mask_embed = self.Embedding_plus_mask(x_noise_mask + x_obs, x_obs, mask_origin)
+        three_input = torch.cat([mask_origin, x_obs, x_noise_mask], dim=1)
+        x_mask_emb, _, _ = self.Embedding_plus_mask(three_input, x_obs, mask_origin)
         users_embed = self.userEmbedding(user)
 
         _, L, C = x_mask_emb.shape
@@ -257,9 +258,9 @@ class DiT(nn.Module):
 
         t = self.t_embedder(t)                   # (N, D)
 
-        x_mask_emb = x_mask_emb + pos_embed_sort.to(device=t.device) +  t.unsqueeze(1) + poi_emb + users_embed
+        x_mask_emb = x_mask_emb + pos_embed_sort.to(device=t.device) +  TimeEmb + poi_emb 
 
-        c = TimeEmb  + mask_embed
+        c = t.unsqueeze(1) + users_embed
         #####-----------------------------------------------------------------------####
         for block in self.blocks:
             x_mask_emb = block(x_mask_emb, c)                      # (N, T, D)

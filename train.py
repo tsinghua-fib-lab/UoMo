@@ -7,10 +7,13 @@ import math
 import time
 from einops import rearrange
 
+
+
 def set_random_seed(seed):
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
+
 
 class TrainLoop:
     def __init__(self, args, writer, model, diffusion, data, test_data, val_data, device):
@@ -34,6 +37,7 @@ class TrainLoop:
         self.early_stop = 0
         
         self.mask_list = {'random_masking':[0.5],'generation_masking':[0.25],'short_long_temporal_masking':[0.25,0.75]}
+        #self.mask_list = {'random_masking':[0.25, 0.5]}
 
 
     def run_step(self, batch, step, index, mask_stg, mask_rate, name):
@@ -53,28 +57,26 @@ class TrainLoop:
             for _, batch in enumerate(test_data[index]):
                 
                 loss= self.model_forward(batch, self.model, mask_stg, mask_rate, seed=seed, data = dataset, mode='forward')
-                # error_norm += loss.item()
                 error_norm += sum(loss['loss'])
-                #
                 num += loss['loss'].shape[0]
-                # num2 += (1-mask).sum().item()
-
 
         loss_test = error_norm / num
 
         return loss_test
-
-
+    
     def Evaluation(self, test_data, epoch, seed=None, best=True, Type='val'):
-
 
         rmse_list = []
         rmse_key_result = {}
-
+        dataset_name0=[]
+        for index_t, dataset_name_t in enumerate(self.args.dataset.split('*')):
+            for index_mask, batch2 in enumerate(self.test_data[index_t]):
+                dataset_name0.append(dataset_name_t)
+        print(dataset_name0)
         for index, dataset_name in enumerate(self.args.dataset.split('*')):
-
+  
             rmse_key_result[dataset_name] = {}
-
+            
 
             for s in self.mask_list:
                 for m in self.mask_list[s]:
@@ -83,10 +85,12 @@ class TrainLoop:
                     if s not in rmse_key_result[dataset_name]:
                         rmse_key_result[dataset_name][s] = {}
                     rmse_key_result[dataset_name][s][m] = result
+
                     if Type == 'val':
                         self.writer.add_scalar('Evaluation/{}-{}-{}'.format(dataset_name.split('_C')[0], s, m), result, epoch)
                     elif Type == 'test':
                         self.writer.add_scalar('Test_RMSE/{}-{}-{}'.format(dataset_name.split('_C')[0], s, m), result, epoch)
+
 
 
         loss_test = np.mean(np.array([tensor.cpu().numpy() for tensor in rmse_list]))
@@ -125,7 +129,8 @@ class TrainLoop:
                 print('Generate samples:')
                 self.model.eval()
                 model_path = self.args.model_path + 'model_save/model_best.pkl'
-                self.model.load_state_dict(torch.load(model_path, map_location=self.device), strict=True)
+                self.model.load_state_dict(
+                    torch.load(model_path, map_location=self.device), strict=True)
                 print('Load model success')
 
                 error_before_scaler, error_after_scaler = 0.0, 0.0
@@ -134,12 +139,10 @@ class TrainLoop:
                 before_target_to_save = []
                 before_sample_to_save = []
                 mask_to_save = []
-
                 for index_t, dataset_name_t in enumerate(self.args.dataset.split('*')):
                     for index_mask, batch2 in enumerate(self.test_data[index_t]):
-                        model_kwargs_t = dict(y=batch2[1].to(device=self.device))
-                        x_start = batch2[0].to(device=self.device)
-
+                        model_kwargs_t = dict(y=batch2[1].cuda())
+                        x_start = batch2[0].cuda()
                         if index_mask % 3 == 0:
                             mask_strategy = 'short_long_temporal_masking'
                             mask_ratio = 0.75
@@ -152,16 +155,18 @@ class TrainLoop:
                             mask_ratio = 0.25
 
                         mask_origin = self.function_dict[mask_strategy](self, x_start, mask_ratio=mask_ratio)
+
                         x_start_masked = mask_origin * x_start
 
                         sample, mask = self.diffusion.p_sample_loop(
-                            self.model, batch2[0].shape, x_start, batch2[2], batch2[3], mask_origin, x_start_masked,
-                            clip_denoised=True, model_kwargs=model_kwargs_t, progress=True,
+                            self.model, batch2[0].shape, x_start, mask_origin, x_start_masked, clip_denoised=True,
+                            model_kwargs=model_kwargs_t, progress=True,
                             device=self.device
                         )
+
                         target = batch2[0]
                         shape_base = target.shape
-                        samples = sample * mask.to(device=self.device) + target.to(device=self.device) * (1 - mask)
+                        samples = sample * mask.cuda() + target.cuda() * (1 - mask)
 
                         before_target_to_save.append(target.detach().cpu().numpy())
                         before_sample_to_save.append(samples.detach().cpu().numpy())
@@ -193,6 +198,7 @@ class TrainLoop:
                 np.savez(filename_gen, gen_traffic=sample_to_save)
                 np.savez(filename_tar, tar_traffic=target_to_save)
                 np.savez(filename_mask, mask=mask_to_save)
+
                 with open(self.args.model_path+'result.txt', 'a') as f:
                     f.write('Early stop!\n')
                 with open(self.args.model_path+'result_all.txt', 'a') as f:
@@ -202,8 +208,7 @@ class TrainLoop:
         
     def mask_select(self):
 
-            
-        mask_strategy=random.choice(['random_masking','generation_masking','short_long_temporal_masking'])
+        mask_strategy=random.choice(['random_masking'])
         mask_ratio=random.choice(self.mask_list[mask_strategy])
 
         return mask_strategy, mask_ratio
@@ -224,18 +229,21 @@ class TrainLoop:
                 loss, num = self.run_step(batch, step,index=0, mask_stg =mask_strategy, mask_rate =  mask_ratio, name = name)
                 step += 1
                 loss_all += loss * num
+
                 num_all += num
+
 
             end = time.time()
             print('training time:{} min'.format(round((end-start)/60.0,2)))
             print('epoch:{}, training loss:{}'.format(epoch, loss_all / num_all))
 
-            if epoch >= 10 :
+            if epoch >= 10:
                 self.writer.add_scalar('Training/Stage_{}_Loss_epoch'.format(self.args.stage), loss_all / num_all, epoch)
 
 
             if epoch % self.log_interval == 0 and epoch > 0 or epoch == 10 or epoch == self.args.total_epoches-1:
                 print('Evaluation')
+
                 is_break = self.Evaluation(self.val_data, epoch, best=True, Type='val')
 
                 if is_break == 'break_1_stage':
@@ -243,8 +251,6 @@ class TrainLoop:
 
                 if is_break == 'save':
                     print('test evaluate!')
-                    #rmse_test, rmse_key_test = self.Evaluation(self.test_data, epoch, best=False, Type='test')
- 
                     rmse_test, rmse_key_test = self.Evaluation(self.test_data, epoch, best=False, Type='test')
                     print('stage:{}, epoch:{}, test rmse: {}\n'.format(self.args.stage, epoch, rmse_test))
                     print(str(rmse_key_test)+'\n')
@@ -257,44 +263,47 @@ class TrainLoop:
         print('Generate samples:')
         self.model.eval()
         model_path = self.args.model_path+'model_save/model_best.pkl'
-        self.model.load_state_dict(torch.load(model_path, map_location=self.device), strict=True)
+        self.model.load_state_dict(
+            torch.load(model_path, map_location=self.device), strict=True)
         print('Load model success')
-        
+
         error_before_scaler, error_after_scaler =0.0, 0.0
         target_to_save = []
         sample_to_save = []
         before_target_to_save = []
         before_sample_to_save = []
         mask_to_save = []
-        
         for index_t, dataset_name_t in enumerate(self.args.dataset.split('*')):
             self.args.name_id = dataset_name_t
             for index_mask, batch2 in enumerate(self.test_data[index_t]):
-                model_kwargs_t = dict(y=batch2[1].to(device=self.device))
-                x_start = batch2[0].to(device=self.device)
-
-                if index_mask % 3 ==0 :
+                model_kwargs_t = dict(y=batch2[1].cuda())
+                x_start = batch2[0].cuda()
+                if index_mask % 3 ==0:
                     mask_strategy = 'short_long_temporal_masking'
                     mask_ratio = 0.75
 
-                elif index_mask % 3 ==1 :
+                elif index_mask % 3 ==1:
                     mask_strategy = 'short_long_temporal_masking'
                     mask_ratio = 0.25
                 else:
                     mask_strategy = 'generation_masking'
-                    mask_ratio = 0.25                   
+                    mask_ratio = 0.25  
+
+
 
                 mask_origin = self.function_dict[mask_strategy](self, x_start, mask_ratio=mask_ratio)
+
                 x_start_masked = mask_origin * x_start
 
 
                 sample, mask = self.diffusion.p_sample_loop(
-                    self.model, batch2[0].shape, x_start, batch2[2],batch2[3], mask_origin,x_start_masked, clip_denoised=True, model_kwargs=model_kwargs_t, progress=True,
+                    self.model, batch2[0].shape, x_start, mask_origin,x_start_masked, clip_denoised=True, model_kwargs=model_kwargs_t, progress=True,
                     device=self.device
                 )
+
                 target = batch2[0]
                 shape_base = target.shape
-                samples = sample * mask.to(device=self.device) + target.to(device=self.device) * (1-mask)
+                samples = sample * mask.cuda() + target.cuda() * (1-mask)
 
                 before_target_to_save.append(target.detach().cpu().numpy())
                 before_sample_to_save.append(samples.detach().cpu().numpy())
@@ -320,6 +329,83 @@ class TrainLoop:
         np.savez(filename_tar, tar_traffic=target_to_save)
         np.savez(filename_mask, mask=mask_to_save)
 
+
+    def evaluating(self):
+        with torch.no_grad():
+            print('Generate samples:')
+            self.model.eval()
+            model_path = self.args.model_path + 'model_save/model_best.pkl'
+            self.model.load_state_dict(
+                torch.load(model_path, map_location=self.device), strict=True)
+            print('Load model success')
+
+            error_before_scaler, error_after_scaler = 0.0, 0.0
+            target_to_save = []
+            sample_to_save = []
+            before_target_to_save = []
+            before_sample_to_save = []
+            mask_to_save = []
+            for index_t, dataset_name_t in enumerate(self.args.dataset.split('*')):
+                # self.args.name_id = dataset_name_t
+                for index_mask, batch2 in enumerate(self.test_data[index_t]):
+                    model_kwargs_t = dict(y=batch2[1].cuda())
+                    x_start = batch2[0].cuda()
+                    if index_mask % 3 == 0:
+                        mask_strategy = 'short_long_temporal_masking'
+                        mask_ratio = 0.75
+
+                    elif index_mask % 3 == 1:
+                        mask_strategy = 'short_long_temporal_masking'
+                        mask_ratio = 0.25
+                    else:
+                        mask_strategy = 'generation_masking'
+                        mask_ratio = 0.25
+
+                    mask_origin = self.function_dict[mask_strategy](self, x_start, mask_ratio=mask_ratio)
+
+                    x_start_masked = mask_origin * x_start
+
+                    sample, mask = self.diffusion.p_sample_loop(
+                        self.model, batch2[0].shape, x_start, mask_origin, x_start_masked, clip_denoised=True,
+                        model_kwargs=model_kwargs_t, progress=True,
+                        device=self.device
+                    )
+
+                    target = batch2[0]
+                    shape_base = target.shape
+                    samples = sample * mask.cuda() + target.cuda() * (1 - mask)
+
+                    before_target_to_save.append(target.detach().cpu().numpy())
+                    before_sample_to_save.append(samples.detach().cpu().numpy())
+
+                    error_before_scaler += mean_squared_error(samples.reshape(-1, 1).detach().cpu().numpy(),
+                                                              target.reshape(-1, 1).detach().cpu().numpy()) / batch2[0].shape[0]
+                    error_after_scaler += mean_squared_error(self.args.scaler[dataset_name_t].inverse_transform(
+                        samples.reshape(-1, 1).detach().cpu().numpy()),
+                                                             self.args.scaler[dataset_name_t].inverse_transform(
+                                                                 target.reshape(-1, 1).detach().cpu().numpy())) / batch2[0].shape[0]
+
+                    save_tar = self.args.scaler[dataset_name_t].inverse_transform(
+                        target.reshape(-1, 1).detach().cpu().numpy()).reshape(shape_base).squeeze(1)
+                    save_gen = self.args.scaler[dataset_name_t].inverse_transform(
+                        samples.reshape(-1, 1).detach().cpu().numpy()).reshape(shape_base).squeeze(1)
+                    target_to_save.append(save_tar)
+                    sample_to_save.append(save_gen)
+                    mask_to_save.append(mask_origin.squeeze(1).detach().cpu().numpy())
+            print('error_before_scaler:', error_before_scaler)
+            print('error_after_scaler:', error_after_scaler)
+    
+
+            filename_gen = 'infer_generate_{}_{}.npz'.format(self.args.dataset.replace('*', '_'), self.args.length0)
+            filename_tar = 'infer_target_{}_{}.npz'.format(self.args.dataset.replace('*', '_'), self.args.length0)
+            filename_mask = 'infer_mask_{}_{}.npz'.format(self.args.dataset.replace('*', '_'), self.args.length0)
+    
+
+            np.savez(filename_gen, gen_traffic=sample_to_save)
+            np.savez(filename_tar, tar_traffic=target_to_save)
+            np.savez(filename_mask, mask=mask_to_save)
+
+
     def random_masking(self, x, mask_ratio):
         """
         Perform per-sample random masking by per-sample shuffling.
@@ -327,9 +413,9 @@ class TrainLoop:
         x: [N, L, D], sequence
         """
         # N, L, D = x.shape  # batch, length, dim
-
+        
         B, _, T, H, W = x.shape  # batch, length,
-        x = x.reshape(B, -1, self.args.t_patch_size * self.args.patch_size ** 2)
+        x = x.reshape(B,-1,self.args.t_patch_size*self.args.patch_size**2)
         B, C, _ = x.shape
         num_elements = C
         # num_elements = L * H * W
@@ -343,9 +429,9 @@ class TrainLoop:
             # Set the first num_ones indices to 1
             ones_indices = indices[:num_ones]
             for j in ones_indices:
-                mask[b, j, :] = 1
-        mask = mask.reshape(B, 1, T, H, W)
-        return mask.float()
+                mask[b,j,:]= 1
+        mask = mask.reshape(B,1,T,H,W)
+        return  mask.float()
 
     def small_tube_masking(self, x, mask_ratio):
         """
@@ -356,10 +442,11 @@ class TrainLoop:
         # N, L, D = x.shape  # batch, length, dim
 
         B, _, T, H, W = x.shape
-        t = T // self.args.t_patch_size
-        h = H // self.args.patch_size
+        t = T//self.args.t_patch_size
+        h = H//self.args.patch_size
         w = W // self.args.patch_size
-        x = x.reshape(B, 1, t, h, w, self.args.t_patch_size * self.args.patch_size ** 2)
+        x = x.reshape(B,1,t,h,w,self.args.t_patch_size*self.args.patch_size**2)
+
 
         mask = torch.zeros_like(x, dtype=torch.float32, device=x.device)
 
@@ -371,18 +458,21 @@ class TrainLoop:
             for idx in mask_indices:
                 hs = idx // w  # 利用总列数W计算行索引
                 ws = idx % w  # 计算列索引
-                mask[b, :, :, hs, ws, :] = 1  # 设置选中位置的所有时间为1
-        mask = mask.reshape(B, 1, T, H, W)
+                mask[b, :, :, hs, ws,:] = 1  # 设置选中位置的所有时间为1
+        mask = mask.reshape(B,1,T, H, W)
         return mask.float()
+
+
+
 
     def short_long_temporal_masking(self, x, mask_ratio):
         """
         根据 mask_ratio大小控制短时间mask和长时间mask
         """
-
+        
         B, _, T, H, W = x.shape
-        t = T // self.args.t_patch_size
-        h = H // self.args.patch_size
+        t = T//self.args.t_patch_size
+        h = H//self.args.patch_size
         w = W // self.args.patch_size
         # x = x.reshape(B,1,t,h,w,self.args.t_patch_size*self.args.patch_size**2)
         x = rearrange(
@@ -390,6 +480,7 @@ class TrainLoop:
             'b c (t tp) (h ph) (w pw) -> b c t h w (tp ph pw)',
             tp=self.args.t_patch_size, ph=self.args.patch_size, pw=self.args.patch_size
         )
+
 
         mask = torch.zeros_like(x, dtype=torch.float32, device=x.device)
 
@@ -420,9 +511,10 @@ class TrainLoop:
         model_kwargs = dict(y=batch[1])
 
         mask_origin = self.function_dict[mask_stg](self,x_start, mask_ratio = mask_rate)
-        loss= self.diffusion.training_losses(model, x_start, batch[2], batch[3], mask_origin, t, model_kwargs)
+        loss= self.diffusion.training_losses(model, x_start, mask_origin, t, model_kwargs)
 
         return loss
+
 
 
     def forward_backward(self, batch, step, index, mask_stg, mask_rate, name=None):

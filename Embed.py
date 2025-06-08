@@ -33,8 +33,8 @@ class TemporalEmbedding(nn.Module):
         x = x.long()
         hour_x = self.hour_embed(x[:,:,1])
         weekday_x = self.weekday_embed(x[:,:,0])
-        timeemb = self.timeconv(hour_x.transpose(1,2)+weekday_x.transpose(1,2)).transpose(1,2)
-
+        #timeemb = self.timeconv(hour_x.transpose(1,2)+weekday_x.transpose(1,2)).transpose(1,2)
+        timeemb = hour_x + weekday_x
         return timeemb
 
 
@@ -132,7 +132,7 @@ class DataEmbedding2(nn.Module):
     def __init__(self, c_in, d_model, dropout=0.1, args=None, size1 = 48, size2=7 ):
         super(DataEmbedding2, self).__init__()
         self.args = args
-        self.value_embedding = TokenEmbedding(c_in=c_in, d_model=d_model, t_patch_size = args.t_patch_size,  patch_size=args.patch_size)
+        self.value_embedding = TokenEmbedding(c_in=3, d_model=d_model, t_patch_size = args.t_patch_size,  patch_size=args.patch_size)
         self.obs_embedding = ObsEmbedding(c_in=c_in, d_model=d_model, t_patch_size=args.t_patch_size,
                                               patch_size=args.patch_size)
         self.mask_embedding = MaskEmbedding(c_in=c_in, d_model=d_model, t_patch_size = args.t_patch_size,  patch_size=args.patch_size)
@@ -164,8 +164,8 @@ class DataEmbedding_u(nn.Module):
         '''
 
         UseEmb = self.user_embedding(users)
-        UseEmb = F.relu(UseEmb)
-        UseEmb = self.dropout(UseEmb)  # 在激活函数后应用 Dropout
+        #UseEmb = F.relu(UseEmb)
+        #UseEmb = self.dropout(UseEmb)  # 在激活函数后应用 Dropout
 
         return UseEmb
 
@@ -182,7 +182,7 @@ class Poiemb(nn.Module):
     def forward(self, x):
         # B, C, T, H, W = x.shape
         x = self.tokenConv(x)
-        x = F.relu(x)
+        #x = F.relu(x)
         x = x.flatten(3)
         x = torch.einsum("ncts->ntsc", x)  # [N, T, H*W, C]
         x = x.reshape(x.shape[0], -1, x.shape[-1])  # [N, T*C*H*W, C]
@@ -199,7 +199,7 @@ class DataEmbedding_poi(nn.Module):
        self.fc1 = nn.Sequential(nn.Linear(d_model, d_model), nn.Sigmoid())
        self.fc2 = nn.Sequential(nn.Linear(d_model, d_model), nn.Sigmoid())
        self.fc_out = nn.Sequential(nn.Linear(d_model, d_model))
-       self.norm_poi = nn.LayerNorm(d_model)
+       #self.norm_poi = nn.LayerNorm(d_model)
 
 
    def forward(self, x, time):
@@ -213,7 +213,7 @@ class DataEmbedding_poi(nn.Module):
        h = self.fc0(emb_init)
        h = self.fc2(self.fc1(h) + h)
        h_out = self.fc_out(h) # 应该是B, N, C
-       return self.norm_poi(h_out)
+       return h_out
 
 # --------------------------------------------------------
 # 2D sine-cosine position embedding

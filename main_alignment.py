@@ -3,7 +3,7 @@ import argparse
 import random
 
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "5"
 from models_with_mask_scale_align import DiT_models
 from train_align import TrainLoop
 import setproctitle
@@ -44,19 +44,19 @@ def create_argparser():
         length0=64,
         early_stop=20,
         weight_decay=1e-4,
-        batch_size=32,
+        batch_size=128,
         log_interval=20,
-        total_epoches=200,
+        total_epoches=100,
         device_id='0',
         machine='machine_name',
         mask_ratio=0.5,
         lr_anneal_steps=500,
-        patch_size=2,
-        t_patch_size=2,
-        clip_grad=0.5,
+        patch_size=1,
+        t_patch_size=1,
+        clip_grad=1,
         mask_strategy=['random_masking','generation_masking', 'short_long_temporal_masking'],  # 'random'
         min_lr=1e-5,
-        dataset='TrafficSD',
+        dataset='TrafficNC2*TrafficSD',#TrafficNC2*
         stage=0,
         pos_emb='SinCos',
         process_name='process_name',
@@ -94,13 +94,14 @@ def main():
 
     model = DiT_models['DiT-S/8'](
         args=args,
+        in_channels = args.t_patch_size * args.patch_size * args.patch_size,
         depth=8,
-        hidden_size=128,
+        hidden_size=256,
     ).to(device)
     diffusion = create_diffusion(timestep_respacing="")
 
 
-    args.finetuing_path = 'Len64_TrafficSD_DiT'
+    args.finetuing_path = 'Len64_TrafficNC2_TrafficSD_DiT'
     model.load_state_dict(torch.load(f'./experiments/{args.finetuing_path}/model_save/model_best.pkl',map_location=device), strict=False)
     model = model.to(device)
 

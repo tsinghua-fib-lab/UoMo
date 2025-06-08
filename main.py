@@ -3,10 +3,10 @@ import argparse
 import random
 
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 
 from models_with_mask_scale import DiT_models
-from train_test import TrainLoop
+from train import TrainLoop
 import setproctitle
 import torch
 from DataLoader import data_load_main
@@ -48,18 +48,24 @@ def create_argparser():
         weight_decay=1e-4,
         batch_size=256,
         log_interval=20,
-        total_epoches = 200,
+        total_epoches = 100,
         device_id='0',
         machine = 'machine_name',
         mask_ratio = 0.5,
         lr_anneal_steps = 500,
-        patch_size = 2,
-        t_patch_size = 2,
-        clip_grad = 0.5,
+        patch_size = 1,
+        random=True,
+        t_patch_size = 1,
+        size = 'small',
+        clip_grad = 1,
         mask_strategy = ['random_masking','generation_masking','short_long_temporal_masking'], # 'random'
+        mode='training',
+        file_load_path = '',
         min_lr = 1e-5,
-        dataset = 'TrafficSD',
+        dataset = 'TrafficNC',#*TrafficSD*TrafficNJ
         stage = 0,
+        no_qkv_bias = 0,
+        batch_size_taxibj = 256,
         pos_emb = 'SinCos',
         process_name = 'process_name',
     )
@@ -101,8 +107,9 @@ def main():
 
     model = DiT_models['DiT-S/8'](
         args=args,
+        in_channels = args.t_patch_size * args.patch_size * args.patch_size,
         depth=8,
-        hidden_size=128,
+        hidden_size=512,
     ).to(device)
     diffusion = create_diffusion(timestep_respacing="")
 

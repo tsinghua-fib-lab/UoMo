@@ -16,6 +16,7 @@ import math
 from timm.models.vision_transformer import  Attention, Mlp
 from Embed import DataEmbedding, DataEmbedding2, get_2d_sincos_pos_embed, get_1d_sincos_pos_embed_from_grid
 import copy
+import torch.nn.functional as F
 
 def modulate(x, shift, scale):
     return x * (1 + scale) + shift
@@ -128,8 +129,8 @@ class DiT(nn.Module):
         self,
         args = None,
         input_size=32,
-        patch_size=2,
-        in_channels=2 * 2 * 2,
+        patch_size= 2,
+        in_channels= 2*2*2,
         hidden_size=1152,
         depth=28,
         num_heads=16,
@@ -144,6 +145,11 @@ class DiT(nn.Module):
         self.args = args
         self.hidden_size = hidden_size
 
+
+
+
+        self.cond_projection = Conv1d_with_init(2 * hidden_size, hidden_size, 1)
+
         self.Embedding_H = DataEmbedding(1, self.hidden_size, args=self.args, size1 = 24, size2 = 7)
         self.Embedding_halfH = DataEmbedding(1, self.hidden_size, args=self.args, size1=48, size2=7)
         self.Embedding_qartH = DataEmbedding(1, self.hidden_size, args=self.args, size1=96, size2=7)
@@ -156,7 +162,6 @@ class DiT(nn.Module):
         self.pos_embed_temporal = nn.Parameter(
             torch.zeros(1, 50, hidden_size)
         )
-
 
         #---------------------------------------------------
 
@@ -291,31 +296,33 @@ class DiT(nn.Module):
         T = T // self.args.t_patch_size
         input_size = (T, H // self.args.patch_size, W // self.args.patch_size)
         pos_embed_sort = self.pos_embed_enc( N, input_size)
-        if self.args.name_id == 'TrafficSD':
+
+
+        if self.args.name_id == 'TrafficNJ':
             TimeEmb = self.Embedding_qartH(x, y, is_time=True)
-        elif self.args.name_id == 'TrafficNC2' or self.args.dataset == 'TrafficNC1':
+        elif self.args.name_id == 'TrafficNC':
             TimeEmb = self.Embedding_halfH(x, y, is_time=True)
         else:
             TimeEmb = self.Embedding_H(x, y, is_time=True)
 
+
         x_noise_mask = x[:,1].unsqueeze(1)
         x_obs = x[:,0].unsqueeze(1)
+        asdff = torch.cat([mask_origin, x_obs, x_noise_mask], dim=1)
 
-
-        x_mask_emb, obs_embed, mask_embed = self.Embedding_plus_mask(x_noise_mask+x_obs, x_obs, mask_origin)
+        x_mask_emb, obs_embed, mask_embed = self.Embedding_plus_mask(asdff, x_obs, mask_origin)
 
         _, L, C = x_mask_emb.shape
         assert x_mask_emb.shape == pos_embed_sort.shape
 
-        x_mask_emb_comb = x_mask_emb 
-
+        x_mask_emb_comb = x_mask_emb
 
         t = self.t_embedder(t)                   # (N, D)
-        x_mask_emb = x_mask_emb + pos_embed_sort.to(device = t.device) +  t.unsqueeze(1)
-        c = TimeEmb + mask_embed
+        x_mask_emb_comb = x_mask_emb_comb + pos_embed_sort.to(device = t.device) +  TimeEmb
+        c =  t.unsqueeze(1)  #+ mask_embed
         for block in self.blocks:
-            x_mask_emb = block(x_mask_emb, c)                      # (N, T, D)
-        x = self.final_layer(x_mask_emb, c)               # (N, T, patch_size ** 2 * out_channels)
+            x_mask_emb_comb = block(x_mask_emb_comb, c)                      # (N, T, D)
+        x = self.final_layer(x_mask_emb_comb, c)               # (N, T, patch_size ** 2 * out_channels)
         x = self.unpatchify(x)                   # (N, out_channels, H, W)
         return x, mask_origin
 
