@@ -56,7 +56,7 @@ def create_argparser():
         clip_grad=1,
         mask_strategy=['random_masking','generation_masking', 'short_long_temporal_masking'],  # 'random'
         min_lr=1e-5,
-        dataset='TrafficNC2*TrafficSD',#TrafficNC2*
+        dataset='TrafficNC*TrafficSD*TrafficNJ',#
         stage=0,
         pos_emb='SinCos',
         process_name='process_name',
