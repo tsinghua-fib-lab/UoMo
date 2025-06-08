@@ -14,4 +14,46 @@ Our model adopts a three-stage paradigm consisting of <code>tokenization</code>,
 
 <img src="./images/workflow.png">
 
-# Dataset
+# Provided Datasets
+
+We provide three datasets used in the original model training: **TrafficNJ**, **TrafficSD**, and **TrafficNC**, along with corresponding **user count** and **POI data**.
+
+## 1. Data Usage
+
+- The datasets are located in the `dataset64time` folder.
+- Please extract each `.rar` file to obtain the data in `.json` format.
+
+## 2. Data Format
+
+Each dataset is stored as a dictionary containing the following four keys:
+
+- `train`: shape `N₁ × 1 × 64 × 4 × 4`  
+  - `64`: temporal length  
+  - `4 × 4`: spatial patches of the geographical area  
+
+- `test`: shape `N₂ × 1 × 64 × 4 × 4`  
+  - `64`: temporal length  
+  - `4 × 4`: spatial patches of the geographical area  
+
+- `val`: shape `N₃ × 1 × 64 × 4 × 4`  
+  - `64`: temporal length  
+  - `4 × 4`: spatial patches of the geographical area  
+
+- `timestamp`: shape `N × 1 × 64 × 2`  
+  - `64`: temporal length  
+  - `2`: timestamp corresponding to each time step, formatted as `[time, day]`
+
+## 3. Dataset Description
+
+- **TrafficNJ**  
+  - 15-minute granularity  
+  - timestamp dimension space: `[96, 7]`
+
+- **TrafficNC**  
+  - 30-minute granularity  
+  - timestamp dimension space: `[48, 7]`
+
+- **TrafficSD**  
+  - 1-hour granularity  
+  - timestamp dimension: `[24, 7]`
+
