@@ -83,7 +83,7 @@ def main():
 
     writer = SummaryWriter(log_dir = logdir,flush_secs=5)
 
-    device = dev(args.device_id)
+    device = dev()
 
 
     model = UoMo_models['UoMo-S'](
